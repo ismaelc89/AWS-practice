@@ -1,7 +1,5 @@
 # 2-Tier AWS Architecture: Public Nginx Reverse Proxy & Private App Server
 
-This repo explain how to configure basic AWS services for practice
-
 A hands-on, step-by-step guide to deploying a secure **2-Tier Architecture** on AWS within the **Free Tier**. This project demonstrates core cloud networking concepts, including custom VPC design, subnet isolation, route tables, security group chaining, and reverse proxying with Nginx.
 
 ---
@@ -20,7 +18,7 @@ A hands-on, step-by-step guide to deploying a secure **2-Tier Architecture** on 
  │ VPC (10.0.0.0/16)                                           │
  │                                                             │
  │   ┌─────────────────────────────────────────────────────┐   │
- │   │ Public Subnet (10.0.1.0/24)                        │   │
+ │   │ Public Subnet (10.0.1.0/24)                         │   │
  │   │   - Route Table -> Internet Gateway                 │   │
  │   │                                                     │   │
  │   │   ┌─────────────────────────────────────────────┐   │   │
@@ -77,6 +75,12 @@ A hands-on, step-by-step guide to deploying a secure **2-Tier Architecture** on 
    * Click **Create internet gateway**.
    * Click **Actions > Attach to VPC**, select `practice-vpc`, and click **Attach internet gateway**.
 
+
+**Note:** when creating a VPC it will automatically create some other services such as
+   * Main Route Table: Contains only local route
+   * Default Security Group: Allows inbound from self, all outbound
+   * Default Network ACL: Allows ALL inbound and outbound traffic
+
 ---
 
 ### Phase 2: Subnet Configuration
@@ -93,6 +97,8 @@ A hands-on, step-by-step guide to deploying a secure **2-Tier Architecture** on 
    * Select `public-subnet-1a`.
    * Click **Actions > Edit subnet settings**.
    * Check **Enable auto-assign public IPv4 address** and click **Save**.
+
+**Note:** This setting is required so when we create an instance on this subnet it will automatically get a public ip for us to access it via ssh or http
 
 3. **Create the Private Subnet:**
    * Click **Create subnet**.
@@ -152,6 +158,8 @@ By default, all subnets attach to the VPC's Main Route Table (local traffic only
 1. **Launch Private App Server:**
    * **Name:** `private-app-server`
    * **AMI:** Amazon Linux 2023 | **Instance Type:** `t3.micro` (or `t2.micro`)
+   * **Key pair name:** select the key pair to access via ssh
+   * **Network:** `practice-vpc`
    * **Subnet:** `private-subnet-1a` | **Auto-assign Public IP:** Disable
    * **Security Group:** `private-ec2-sg`
    * *Note down its Private IP Address (e.g., `10.0.2.x`).*
@@ -159,6 +167,8 @@ By default, all subnets attach to the VPC's Main Route Table (local traffic only
 2. **Launch Public Web Proxy:**
    * **Name:** `public-web-proxy`
    * **AMI:** Amazon Linux 2023 | **Instance Type:** `t3.micro` (or `t2.micro`)
+   * **Key pair name:** select the key pair to access via ssh
+   * **Network:** `practice-vpc`
    * **Subnet:** `public-subnet-1a` | **Auto-assign Public IP:** Enable
    * **Security Group:** `public-ec2-sg`
    * *Note down its Public IP Address.*
@@ -167,7 +177,7 @@ By default, all subnets attach to the VPC's Main Route Table (local traffic only
 
 ### Phase 6: Application & Nginx Setup
 
-#### 1. Configure Private App Server
+# 1. Configure Private App Server
 From your local terminal, SSH into the Public EC2 and jump to the Private EC2:
 
 ```bash
@@ -178,14 +188,14 @@ ssh -i /path/to/key.pem ec2-user@<PUBLIC_EC2_PUBLIC_IP>
 ssh -i /path/to/key.pem ec2-user@<PRIVATE_EC2_PRIVATE_IP>
 
 # 3. Create a test web page
-echo "<h1>Hello from the Private Subnet App Server!</h1>" > index.html
+From this repo copy/paste the script "create_test_web.sh" into the private instance
 
-# 4. Start Python HTTP Server on port 8080
-python3 -m http.server 8080
+# 4. Execute script
+chmod +x create_test_web.sh
+./create_test_web.sh
 ```
-*(Keep this session running)*.
 
-#### 2. Configure Nginx Reverse Proxy
+# 2. Configure Nginx Reverse Proxy
 Open a new terminal window on your laptop:
 
 ```bash
@@ -193,22 +203,11 @@ Open a new terminal window on your laptop:
 ssh -i /path/to/key.pem ec2-user@<PUBLIC_EC2_PUBLIC_IP>
 
 # 2. Install and start Nginx
-sudo dnf install -y nginx
-sudo systemctl enable --now nginx
+From this repo copy/paste the script "nginx_setup.sh" 
 
-# 3. Edit Nginx configuration
-sudo nano /etc/nginx/nginx.conf
-```
-
-Inside `/etc/nginx/nginx.conf`, locate the `server` block and update the `location /` section:
-
-```nginx
-location / {
-    proxy_pass http://<PRIVATE_EC2_PRIVATE_IP>:8080;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-}
+#3. Execute script
+chmod +x nginx_setup.sh
+./nginx_setup.sh <PRIVATE_EC2_PRIVATE_IP>
 ```
 
 Validate and reload Nginx:
