@@ -181,16 +181,13 @@ By default, all subnets attach to the VPC's Main Route Table (local traffic only
 From your local terminal, SSH into the Public EC2 and jump to the Private EC2:
 
 ```bash
-# 1. SSH into Public EC2 from laptop
-ssh -i /path/to/key.pem ec2-user@<PUBLIC_EC2_PUBLIC_IP>
+# 1. SSH from Public EC2 to Private EC2
+ssh -i /path/to/key.pem o ProxyJump=ec2-user@<PUBLIC_EC2_PUBLIC_IP> ec2-user@<PRIVATE_EC2_PRIVATE_IP> 
 
-# 2. SSH from Public EC2 to Private EC2
-ssh -i /path/to/key.pem ec2-user@<PRIVATE_EC2_PRIVATE_IP>
-
-# 3. Create a test web page
+# 2. Create a test web page
 From this repo copy/paste the script "create_test_web.sh" into the private instance
 
-# 4. Execute script
+# 3. Execute script
 chmod +x create_test_web.sh
 ./create_test_web.sh
 ```
